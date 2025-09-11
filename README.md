@@ -90,3 +90,44 @@ XmlParserApp/
 ## 许可证
 
 MIT
+
+
+
+需求：
+左上角：Simulators
+表格内容：
+Name, Connetcion,Description
+SytemID    MQ             init success
+
+右上角： Messages（展示消息推送记录）
+Time  TID  Message
+
+右中间：Message Detail
+右上角选择具体消息时，展示消息详情
+
+
+左中间: Properties 
+Name   SytemID
+Connection Type  MQ
+Library:  (导入)
+Connection Set(可展开)：
+   IP
+   Port
+   Listen Queue
+   Target Queue
+
+左下：Message properties
+Name  Description IsDefault
+勾选完成后，可以保存》
+
+右下： 一个send按钮，然后按钮下方一个文本框，根据左侧选择的 IsDefault展示具体文本内容。
+
+那就是前后端总共4个接口
+1，解析xml文件并回传接口
+2，IsDefault选择后 保存接口
+3，主动发送消息Send接口
+4，后端记录的操作历史展示接口
+
+
+
+
