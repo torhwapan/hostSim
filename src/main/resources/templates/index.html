@@ -2,264 +2,581 @@
 <html xmlns:th="http://www.thymeleaf.org">
 <head>
     <meta charset="UTF-8">
-    <title>XML解析器</title>
+    <title>Host Simulator</title>
+    <!-- 使用替代CDN源加载jQuery和bootstrap -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.0/jquery.min.js"></script>
     <style>
         body {
             font-family: Arial, sans-serif;
             margin: 0;
-            padding: 20px;
-            background-color: #f5f5f5;
+            padding: 10px;
         }
-        .container {
+        .container-fluid {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            grid-template-rows: auto auto 1fr;
-            grid-gap: 20px;
-            max-width: 1400px;
-            margin: 0 auto;
+            grid-template-rows: auto auto auto;
+            grid-template-areas: 
+                "simulators messages"
+                "properties message-detail"
+                "message-properties send-area";
+            gap: 15px;
+            height: calc(100vh - 20px);
         }
-        .header {
-            grid-column: 1 / -1;
-            text-align: center;
-            margin-bottom: 20px;
+        .section {
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            padding: 10px;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
         }
-        .config-section {
-            background-color: white;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        .simulators-section {
+            grid-area: simulators;
         }
-        .system-config {
-            grid-column: 1;
-            grid-row: 1;
+        .messages-section {
+            grid-area: messages;
         }
-        .mq-config {
-            grid-column: 1;
-            grid-row: 2;
+        .properties-section {
+            grid-area: properties;
         }
-        .xml-display {
-            grid-column: 1;
-            grid-row: 3;
+        .message-detail-section {
+            grid-area: message-detail;
         }
-        .xml-details {
-            grid-column: 2;
-            grid-row: 1 / -1;
+        .message-properties-section {
+            grid-area: message-properties;
         }
-        .form-group {
-            margin-bottom: 15px;
+        .send-area-section {
+            grid-area: send-area;
         }
-        .form-group label {
-            display: block;
-            margin-bottom: 5px;
+        .section-title {
             font-weight: bold;
+            margin-bottom: 10px;
+            padding-bottom: 5px;
+            border-bottom: 1px solid #ddd;
         }
-        .form-group input,
-        .form-group textarea {
-            width: 100%;
-            padding: 8px;
-            box-sizing: border-box;
-        }
-        .form-group textarea {
-            height: 100px;
-        }
-        button {
-            padding: 10px 15px;
-            background-color: #4CAF50;
-            color: white;
-            border: none;
+        /* 为所有表格容器添加滚动样式 */
+        .table-responsive {
+            flex-grow: 1;
+            overflow-y: auto;
+            overflow-x: auto;
+            max-height: 300px;
+            border: 1px solid #ddd;
             border-radius: 4px;
-            cursor: pointer;
         }
-        button:hover {
-            background-color: #45a049;
+        
+        /* 确保表头在滚动时保持可见 */
+        th {
+            background-color: #f2f2f2;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+            border-bottom: 2px solid #ddd;
         }
         table {
             width: 100%;
             border-collapse: collapse;
-            margin-top: 10px;
-        }
-        table, th, td {
-            border: 1px solid #ddd;
         }
         th, td {
+            border: 1px solid #ddd;
             padding: 8px;
             text-align: left;
         }
         th {
             background-color: #f2f2f2;
+            position: sticky;
+            top: 0;
         }
-        .scrollable {
-            max-height: 400px;
-            overflow-y: auto;
+        tr:hover {
+            background-color: #f5f5f5;
+            cursor: pointer;
+        }
+        tr.selected {
+            background-color: #e3f2fd;
+        }
+        .detail-box {
+            flex-grow: 1;
             border: 1px solid #ddd;
             padding: 10px;
+            overflow: auto;
+            white-space: pre-wrap;
             background-color: #f9f9f9;
         }
-        .message {
-            padding: 10px;
+        .form-group {
             margin-bottom: 10px;
-            border-radius: 4px;
-            color: white;
         }
-        .success {
-            background-color: #4CAF50;
+        .btn {
+            margin-right: 5px;
         }
-        .error {
-            background-color: #f44336;
+        .connection-set {
+            display: none;
+            margin-top: 10px;
+        }
+        .connection-set-row {
+            display: flex;
+            margin-bottom: 5px;
+        }
+        .connection-set-label {
+            width: 100px;
+            font-weight: bold;
+        }
+        .connection-set-value {
+            flex-grow: 1;
+        }
+        .file-upload-btn {
+            margin-top: 5px;
+        }
+        .save-btn {
+            margin-top: 10px;
+        }
+        .send-btn {
+            margin-bottom: 10px;
+        }
+        .send-textarea {
+            width: 100%;
+            height: 100px;
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <div class="header">
-            <h1>XML解析器</h1>
-        </div>
-        
-        <!-- 系统连接配置 -->
-        <div class="config-section system-config">
-            <h2>系统连接配置</h2>
-            <form th:action="@{/updateConfig}" method="post">
-                <div class="form-group">
-                    <label for="systemUrl">系统URL</label>
-                    <input type="text" id="systemUrl" name="systemUrl" value="http://localhost:8080"/>
-                </div>
-                <div class="form-group">
-                    <label for="username">用户名</label>
-                    <input type="text" id="username" name="username" value="admin"/>
-                </div>
-                <div class="form-group">
-                    <label for="password">密码</label>
-                    <input type="password" id="password" name="password" value="admin"/>
-                </div>
-                <button type="submit">保存配置</button>
-            </form>
-            <div th:if="${configMessage}" class="message success" th:text="${configMessage}"></div>
-        </div>
-        
-        <!-- MQ连接配置 -->
-        <div class="config-section mq-config">
-            <h2>MQ连接配置</h2>
-            <form th:action="@{/updateMqConfig}" method="post">
-                <div class="form-group">
-                    <label for="mqHost">主机</label>
-                    <input type="text" id="mqHost" name="mqHost" value="localhost"/>
-                </div>
-                <div class="form-group">
-                    <label for="mqPort">端口</label>
-                    <input type="text" id="mqPort" name="mqPort" value="5672"/>
-                </div>
-                <div class="form-group">
-                    <label for="mqUsername">用户名</label>
-                    <input type="text" id="mqUsername" name="mqUsername" value="guest"/>
-                </div>
-                <div class="form-group">
-                    <label for="mqPassword">密码</label>
-                    <input type="password" id="mqPassword" name="mqPassword" value="guest"/>
-                </div>
-                <button type="submit">保存MQ配置</button>
-            </form>
-            <div th:if="${mqConfigMessage}" class="message success" th:text="${mqConfigMessage}"></div>
-        </div>
-        
-        <!-- XML消息展示 -->
-        <div class="config-section xml-display">
-            <h2>XML消息展示</h2>
-            <form th:action="@{/parse}" method="post">
-                <div class="form-group">
-                    <label for="xmlContent">XML内容</label>
-                    <textarea id="xmlContent" name="xmlContent" th:text="${xmlContent}" required>
-&lt;root&gt;
-    &lt;user id="1" name="张三" age="25"&gt;
-        &lt;address type="home"&gt;北京市朝阳区&lt;/address&gt;
-        &lt;phone type="mobile"&gt;13800138001&lt;/phone&gt;
-        &lt;email&gt;zhangsan@example.com&lt;/email&gt;
-    &lt;/user&gt;
-    &lt;user id="2" name="李四" age="30"&gt;
-        &lt;address type="home"&gt;上海市浦东新区&lt;/address&gt;
-        &lt;phone type="mobile"&gt;13900139002&lt;/phone&gt;
-        &lt;email&gt;lisi@example.com&lt;/email&gt;
-    &lt;/user&gt;
-&lt;/root&gt;</textarea>
-                </div>
-                <button type="submit">解析XML</button>
-            </form>
-            
-            <h3>第二层级元素</h3>
-            <form th:action="@{/sendToMq}" method="post">
-                <input type="hidden" name="xmlContent" th:value="${xmlContent}"/>
-                <div class="scrollable">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>选择</th>
-                                <th>元素名称</th>
-                                <th>文本内容</th>
-                                <th>操作</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <tr th:each="element, index : ${elements}">
-                                <td><input type="checkbox" name="selectedElements" th:value="${index.index}"/></td>
-                                <td th:text="${element.name}"></td>
-                                <td th:text="${element.text}"></td>
-                                <td>
-                                    <form th:action="@{/getDetails}" method="post" style="display: inline;">
-                                        <input type="hidden" name="elementIndex" th:value="${index.index}"/>
-                                        <input type="hidden" name="xmlContent" th:value="${xmlContent}"/>
-                                        <button type="submit">查看详情</button>
-                                    </form>
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-                <button type="submit">发送选中到MQ</button>
-            </form>
-            <div th:if="${message}" class="message success" th:text="${message}"></div>
-        </div>
-        
-        <!-- XML详细消息体 -->
-        <div class="config-section xml-details">
-            <h2>XML详细消息体</h2>
-            <div class="scrollable" th:if="${selectedElement}">
-                <h3 th:text="${selectedElement.name}"></h3>
-                <p><strong>文本内容:</strong> <span th:text="${selectedElement.text}"></span></p>
-                
-                <h4>属性</h4>
-                <table th:if="${selectedElement.attributes}">
+    <div class="container-fluid">
+        <!-- 左上角：Simulators表格 -->
+        <div class="section simulators-section">
+            <div class="section-title">Simulators</div>
+            <div class="table-responsive">
+                <table id="simulators-table">
                     <thead>
                         <tr>
-                            <th>名称</th>
-                            <th>值</th>
+                            <th>Name</th>
+                            <th>Connection</th>
+                            <th>Description</th>
                         </tr>
                     </thead>
                     <tbody>
-                        <tr th:each="attr : ${selectedElement.attributes}">
-                            <td th:text="${attr.key}"></td>
-                            <td th:text="${attr.value}"></td>
+                        <tr th:each="simulator : ${simulators}" th:data-name="${simulator.name}">
+                            <td th:text="${simulator.name}"></td>
+                            <td th:text="${simulator.connection}"></td>
+                            <td th:text="${simulator.description}"></td>
                         </tr>
                     </tbody>
                 </table>
-                
-                <h4>子元素</h4>
-                <div th:if="${selectedElement.children}">
-                    <div th:each="child : ${selectedElement.children}">
-                        <p><strong th:text="${child.name}"></strong>: <span th:text="${child.text}"></span></p>
-                        <table th:if="${child.attributes}">
-                            <tbody>
-                                <tr th:each="attr : ${child.attributes}">
-                                    <td th:text="${attr.key}"></td>
-                                    <td th:text="${attr.value}"></td>
-                                </tr>
-                            </tbody>
-                        </table>
+            </div>
+        </div>
+
+        <!-- 右上角：Messages表格 -->
+        <div class="section messages-section">
+            <div class="section-title">Messages</div>
+            <div class="table-responsive">
+                <table id="messages-table">
+                    <thead>
+                        <tr>
+                            <th>Time</th>
+                            <th>TID</th>
+                            <th>Message</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr th:each="message : ${messages}" th:data-tid="${message.tid}">
+                            <td th:text="${message.time}"></td>
+                            <td th:text="${message.tid}"></td>
+                            <td th:text="${message.message}"></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- 左中间：Properties表格 -->
+        <div class="section properties-section">
+            <div class="section-title">Properties</div>
+            <div id="property-content">
+                <div class="property-row">
+                    <div class="connection-set-row">
+                        <div class="connection-set-label">Name:</div>
+                        <div class="connection-set-value" id="property-name" th:text="${selectedProperty?.name}"></div>
+                    </div>
+                </div>
+                <div class="property-row">
+                    <div class="connection-set-row">
+                        <div class="connection-set-label">SystemID:</div>
+                        <div class="connection-set-value" id="property-systemId" th:text="${selectedProperty?.systemId}"></div>
+                    </div>
+                </div>
+                <div class="property-row">
+                    <div class="connection-set-row">
+                        <div class="connection-set-label">Connection Type:</div>
+                        <div class="connection-set-value" id="property-connectionType" th:text="${selectedProperty?.connectionType}"></div>
+                    </div>
+                </div>
+                <div class="property-row">
+                    <div class="connection-set-row">
+                        <div class="connection-set-label">MQ Library:</div>
+                        <div class="connection-set-value">
+                            <span id="property-mqLibrary" th:text="${selectedProperty?.mqLibrary}"></span>
+                            <input type="file" id="file-upload" class="file-upload-btn form-control" accept=".xml">
+                        </div>
+                    </div>
+                </div>
+                <div class="property-row">
+                    <div class="connection-set-row" id="connection-set-header">
+                        <div class="connection-set-label">Connection Set</div>
+                        <div class="connection-set-value">
+                            <button id="toggle-connection-set" class="btn btn-sm btn-primary">Show</button>
+                        </div>
+                    </div>
+                    <div class="connection-set" id="connection-set-content">
+                        <div class="connection-set-row">
+                            <div class="connection-set-label">IP:</div>
+                            <div class="connection-set-value" id="connection-ip" th:text="${selectedProperty?.connectionSet?.ip}"></div>
+                        </div>
+                        <div class="connection-set-row">
+                            <div class="connection-set-label">Port:</div>
+                            <div class="connection-set-value" id="connection-port" th:text="${selectedProperty?.connectionSet?.port}"></div>
+                        </div>
+                        <div class="connection-set-row">
+                            <div class="connection-set-label">Listen Queue:</div>
+                            <div class="connection-set-value" id="connection-listenQueue" th:text="${selectedProperty?.connectionSet?.listenQueue}"></div>
+                        </div>
+                        <div class="connection-set-row">
+                            <div class="connection-set-label">Target Queue:</div>
+                            <div class="connection-set-value" id="connection-targetQueue" th:text="${selectedProperty?.connectionSet?.targetQueue}"></div>
+                        </div>
                     </div>
                 </div>
             </div>
-            <div th:unless="${selectedElement}" class="scrollable">
-                <p>请从左侧选择一个元素查看详细信息</p>
+        </div>
+
+        <!-- 右中间：Message Detail文本框 -->
+        <div class="section message-detail-section">
+            <div class="section-title">Message Detail</div>
+            <div class="detail-box" id="message-detail">
+                Select a message to view details
             </div>
         </div>
+
+        <!-- 左下角：Message properties表格 -->
+        <div class="section message-properties-section">
+            <div class="section-title">Message properties</div>
+            <div class="table-responsive">
+                <table id="message-properties-table">
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Description</th>
+                            <th>IsDefault</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr th:each="property : ${messageProperties}" th:data-id="${property.name}">
+                            <td th:text="${property.name}"></td>
+                            <td th:text="${property.description}"></td>
+                            <td>
+                                <input type="checkbox" class="is-default-checkbox" th:checked="${property.default}">
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            <button id="save-properties-btn" class="btn btn-primary save-btn">Save</button>
+        </div>
+
+        <!-- 右下：Send按钮和文本框 -->
+        <div class="section send-area-section">
+            <div class="section-title">Send Message</div>
+            <button id="send-btn" class="btn btn-primary send-btn">Send</button>
+            <textarea id="send-textarea" class="send-textarea form-control" placeholder="Click on a simulator row to display details here..."></textarea>
+        </div>
     </div>
+
+    <script>
+        $(document).ready(function() {
+            // 1. Simulators表格行点击事件
+            $('#simulators-table tbody tr').click(function() {
+                // 移除所有选中状态
+                $('#simulators-table tbody tr').removeClass('selected');
+                // 添加当前行选中状态
+                $(this).addClass('selected');
+                
+                // 获取选中的模拟器名称
+                var simulatorName = $(this).data('name');
+                
+                // 更新Properties表格（内部会更新Send文本框）
+                updateProperties(simulatorName);
+            });
+            
+            // 2. Messages表格行点击事件
+            $('#messages-table tbody tr').click(function() {
+                // 移除所有选中状态
+                $('#messages-table tbody tr').removeClass('selected');
+                // 添加当前行选中状态
+                $(this).addClass('selected');
+                
+                // 获取选中的消息TID
+                var tid = $(this).data('tid');
+                
+                // 更新Message Detail
+                updateMessageDetail(tid);
+            });
+            
+            // 3. 切换Connection Set显示/隐藏
+            $('#toggle-connection-set').click(function() {
+                var content = $('#connection-set-content');
+                var btn = $(this);
+                
+                if (content.is(':visible')) {
+                    content.hide();
+                    btn.text('Show');
+                } else {
+                    content.show();
+                    btn.text('Hide');
+                }
+            });
+            
+            // 4. 文件上传功能
+            $('#file-upload').change(function() {
+                var file = this.files[0];
+                if (file) {
+                    uploadFile(file);
+                }
+            });
+            
+            // 5. 保存消息属性配置
+            $('#save-properties-btn').click(function() {
+                saveMessageProperties();
+            });
+            
+            // 6. 发送消息
+            $('#send-btn').click(function() {
+                sendMessage();
+            });
+            
+            // 更新Properties表格
+            function updateProperties(simulatorName) {
+                $.ajax({
+                    url: '/xmlparser/api/property/' + simulatorName,
+                    type: 'GET',
+                    success: function(property) {
+                        // 更新Properties内容
+                        $('#property-name').text(property.name);
+                        $('#property-systemId').text(property.systemId);
+                        $('#property-connectionType').text(property.connectionType);
+                        $('#property-mqLibrary').text(property.mqLibrary);
+                        $('#connection-ip').text(property.connectionSet.ip);
+                        $('#connection-port').text(property.connectionSet.port);
+                        $('#connection-listenQueue').text(property.connectionSet.listenQueue);
+                        $('#connection-targetQueue').text(property.connectionSet.targetQueue);
+                        
+                        // 不再从simulator属性更新Send文本框，而是从Message properties表格更新
+                    },
+                    error: function() {
+                        alert('Failed to load property data');
+                    }
+                });
+            }
+            
+            // 更新Message Detail
+            function updateMessageDetail(tid) {
+                $.ajax({
+                    url: '/xmlparser/api/message/detail/' + tid,
+                    type: 'GET',
+                    success: function(message) {
+                        $('#message-detail').text(message.detail);
+                    },
+                    error: function() {
+                        alert('Failed to load message detail');
+                    }
+                });
+            }
+            
+            // 更新Send文本框
+            function updateSendTextarea(property) {
+                // 构建要显示的内容
+                var content = 'Selected Message Property:\n';
+                content += 'Name: ' + property.name + '\n';
+                content += 'Description: ' + property.description + '\n';
+                content += 'Default: ' + (property.default ? 'Yes' : 'No');
+                
+                $('#send-textarea').val(content);
+            }
+            
+            // 上传文件
+            function uploadFile(file) {
+                var formData = new FormData();
+                formData.append('file', file);
+                
+                $.ajax({
+                    url: '/xmlparser/api/upload',
+                    type: 'POST',
+                    data: formData,
+                    processData: false,
+                    contentType: false,
+                    success: function(properties) {
+                        // 更新Message properties表格
+                        updateMessagePropertiesTable(properties);
+                        alert('File uploaded successfully');
+                    },
+                    error: function() {
+                        alert('Failed to upload file');
+                    }
+                });
+            }
+            
+            // 更新Message properties表格
+            function updateMessagePropertiesTable(properties) {
+                var tbody = $('#message-properties-table tbody');
+                tbody.empty();
+                
+                properties.forEach(function(property) {
+                    var row = $('<tr data-id="' + property.name + '"></tr>');
+                    row.append('<td>' + property.name + '</td>');
+                    row.append('<td>' + property.description + '</td>');
+                    row.append('<td><input type="checkbox" class="is-default-checkbox" ' + 
+                               (property.default ? 'checked' : '') + '></td>');
+                    tbody.append(row);
+                });
+                
+                // 重新绑定点击事件
+                $('.is-default-checkbox').change(function() {
+                    // 确保只有一个默认属性
+                    if (this.checked) {
+                        $('.is-default-checkbox').not(this).prop('checked', false);
+                    }
+                });
+                
+                // 为Message properties表格行添加点击事件
+                $('#message-properties-table tbody tr').click(function() {
+                    $('#message-properties-table tbody tr').removeClass('selected');
+                    $(this).addClass('selected');
+                    var name = $(this).data('id');
+                    var description = $(this).find('td:nth-child(2)').text();
+                    var isDefault = $(this).find('.is-default-checkbox').prop('checked');
+                    
+                    // 构建property对象
+                    var property = {
+                        name: name,
+                        description: description,
+                        default: isDefault
+                    };
+                    
+                    // 更新Send文本框
+                    updateSendTextarea(property);
+                });
+            }
+            
+            // 保存消息属性配置
+            function saveMessageProperties() {
+                var properties = [];
+                
+                $('#message-properties-table tbody tr').each(function() {
+                    var name = $(this).data('id');
+                    var description = $(this).find('td:nth-child(2)').text();
+                    var isDefault = $(this).find('.is-default-checkbox').prop('checked');
+                    
+                    properties.push({
+                        name: name,
+                        description: description,
+                        default: isDefault
+                    });
+                });
+                
+                $.ajax({
+                    url: '/xmlparser/api/save/properties',
+                    type: 'POST',
+                    contentType: 'application/json',
+                    data: JSON.stringify(properties),
+                    success: function() {
+                        alert('Properties saved successfully');
+                        // 刷新消息列表
+                        refreshMessages();
+                    },
+                    error: function() {
+                        alert('Failed to save properties');
+                    }
+                });
+            }
+            
+            // 发送消息
+            function sendMessage() {
+                var content = $('#send-textarea').val();
+                
+                if (content.trim() === '') {
+                    alert('Please enter a message to send');
+                    return;
+                }
+                
+                $.ajax({
+                    url: '/xmlparser/api/send/message',
+                    type: 'POST',
+                    contentType: 'application/json',
+                    data: JSON.stringify({content: content}),
+                    success: function() {
+                        alert('Message sent successfully');
+                        // 刷新消息列表
+                        refreshMessages();
+                    },
+                    error: function() {
+                        alert('Failed to send message');
+                    }
+                });
+            }
+            
+            // 刷新消息列表
+            function refreshMessages() {
+                $.ajax({
+                    url: '/xmlparser/api/messages',
+                    type: 'GET',
+                    success: function(messages) {
+                        var tbody = $('#messages-table tbody');
+                        tbody.empty();
+                        
+                        messages.forEach(function(message) {
+                            var row = $('<tr data-tid="' + message.tid + '"></tr>');
+                            row.append('<td>' + message.time + '</td>');
+                            row.append('<td>' + message.tid + '</td>');
+                            row.append('<td>' + message.message + '</td>');
+                            tbody.append(row);
+                        });
+                        
+                        // 重新绑定点击事件
+                        $('#messages-table tbody tr').click(function() {
+                            $('#messages-table tbody tr').removeClass('selected');
+                            $(this).addClass('selected');
+                            var tid = $(this).data('tid');
+                            updateMessageDetail(tid);
+                        });
+                    }
+                });
+            }
+            
+            // 默认选中第一个模拟器
+            if ($('#simulators-table tbody tr').length > 0) {
+                $('#simulators-table tbody tr:first').click();
+            }
+            
+            // 默认选中第一个消息
+            if ($('#messages-table tbody tr').length > 0) {
+                $('#messages-table tbody tr:first').click();
+            }
+            
+            // 为初始渲染的Message properties表格行添加点击事件
+            $('#message-properties-table tbody tr').click(function() {
+                $('#message-properties-table tbody tr').removeClass('selected');
+                $(this).addClass('selected');
+                var name = $(this).data('id');
+                var description = $(this).find('td:nth-child(2)').text();
+                var isDefault = $(this).find('.is-default-checkbox').prop('checked');
+                
+                // 构建property对象
+                var property = {
+                    name: name,
+                    description: description,
+                    default: isDefault
+                };
+                
+                // 更新Send文本框
+                updateSendTextarea(property);
+            });
+        });
+    </script>
 </body>
 </html>

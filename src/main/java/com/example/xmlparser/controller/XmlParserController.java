@@ -1,14 +1,19 @@
 package com.example.xmlparser.controller;
 
+import com.example.xmlparser.model.Message;
+import com.example.xmlparser.model.MessageProperty;
+import com.example.xmlparser.model.Property;
+import com.example.xmlparser.model.Simulator;
 import com.example.xmlparser.service.MqService;
+import com.example.xmlparser.service.UiService;
 import com.example.xmlparser.service.XmlParserService;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -17,86 +22,89 @@ public class XmlParserController {
 
     private final XmlParserService xmlParserService;
     private final MqService mqService;
+    private final UiService uiService;
     private final String demoFilePath;
 
     public XmlParserController(XmlParserService xmlParserService,
                               MqService mqService,
+                              UiService uiService,
                               @Value("${xml.demo.file.path}") String demoFilePath) {
         this.xmlParserService = xmlParserService;
         this.mqService = mqService;
+        this.uiService = uiService;
         this.demoFilePath = demoFilePath;
     }
 
     @GetMapping("/")
     public String index(Model model) {
-        // 解析演示XML文件并展示
-        List<Map<String, Object>> elements = xmlParserService.parseXmlFromFile(demoFilePath);
-        model.addAttribute("elements", elements);
-        return "index";
-    }
-
-    @PostMapping("/parse")
-    public String parseXml(@RequestParam("xmlContent") String xmlContent, Model model) {
-        List<Map<String, Object>> elements = xmlParserService.parseXmlSecondLevel(xmlContent);
-        model.addAttribute("elements", elements);
-        model.addAttribute("xmlContent", xmlContent);
-        return "index";
-    }
-
-    @PostMapping("/getDetails")
-    public String getElementDetails(@RequestParam("elementIndex") int elementIndex,
-                                   @RequestParam("xmlContent") String xmlContent,
-                                   Model model) {
-        List<Map<String, Object>> elements = xmlParserService.parseXmlSecondLevel(xmlContent);
-        model.addAttribute("elements", elements);
-        model.addAttribute("xmlContent", xmlContent);
+        // 添加所有需要的数据到模型
+        model.addAttribute("simulators", uiService.getAllSimulators());
+        model.addAttribute("messages", uiService.getMessages());
+        model.addAttribute("messageProperties", uiService.getCurrentMessageProperties());
         
-        if (elementIndex >= 0 && elementIndex < elements.size()) {
-            Map<String, Object> details = xmlParserService.getElementDetails(elements.get(elementIndex));
-            model.addAttribute("selectedElement", details);
+        // 默认选择第一个模拟器的属性
+        List<Simulator> simulators = uiService.getAllSimulators();
+        if (!simulators.isEmpty()) {
+            model.addAttribute("selectedProperty", uiService.getPropertyBySimulator(simulators.get(0).getName()));
         }
         
         return "index";
     }
 
-    @PostMapping("/sendToMq")
-    public String sendToMq(@RequestParam("xmlContent") String xmlContent,
-                          @RequestParam("selectedElements") List<String> selectedElements,
-                          Model model) {
-        List<Map<String, Object>> elements = xmlParserService.parseXmlSecondLevel(xmlContent);
-        model.addAttribute("elements", elements);
-        model.addAttribute("xmlContent", xmlContent);
-        
-        // 可以根据selectedElements做相应处理，然后发送到MQ
-        mqService.sendXmlMessage(xmlContent);
-        model.addAttribute("message", "消息已发送到MQ");
-        
-        return "index";
+    // 1. 获取模拟器列表
+    @GetMapping("/api/simulators")
+    @ResponseBody
+    public List<Simulator> getSimulators() {
+        return uiService.getAllSimulators();
     }
-
-    @PostMapping("/updateConfig")
-    public String updateConfig(@RequestParam Map<String, String> configParams, Model model) {
-        // 这里可以处理系统连接配置的更新
-        // 实际应用中可能需要持久化配置
-        model.addAttribute("configMessage", "配置已更新");
-        
-        // 重新加载XML元素
-        List<Map<String, Object>> elements = xmlParserService.parseXmlFromFile(demoFilePath);
-        model.addAttribute("elements", elements);
-        
-        return "index";
+    
+    // 2. 获取消息记录
+    @GetMapping("/api/messages")
+    @ResponseBody
+    public List<Message> getMessages() {
+        return uiService.getMessages();
     }
-
-    @PostMapping("/updateMqConfig")
-    public String updateMqConfig(@RequestParam Map<String, String> mqConfigParams, Model model) {
-        // 这里可以处理MQ连接配置的更新
-        // 实际应用中可能需要动态更新MQ连接
-        model.addAttribute("mqConfigMessage", "MQ配置已更新");
-        
-        // 重新加载XML元素
-        List<Map<String, Object>> elements = xmlParserService.parseXmlFromFile(demoFilePath);
-        model.addAttribute("elements", elements);
-        
-        return "index";
+    
+    // 3. 获取消息详情
+    @GetMapping("/api/message/detail/{tid}")
+    @ResponseBody
+    public Message getMessageDetail(@PathVariable String tid) {
+        return uiService.getMessageDetail(tid);
+    }
+    
+    // 4. 获取属性信息
+    @GetMapping("/api/property/{simulatorName}")
+    @ResponseBody
+    public Property getProperty(@PathVariable String simulatorName) {
+        return uiService.getPropertyBySimulator(simulatorName);
+    }
+    
+    // 5. 上传XML文件
+    @PostMapping("/api/upload")
+    @ResponseBody
+    public List<MessageProperty> uploadFile(@RequestParam("file") MultipartFile file) {
+        return uiService.uploadXmlFile(file);
+    }
+    
+    // 6. 保存消息属性配置
+    @PostMapping("/api/save/properties")
+    @ResponseBody
+    public Map<String, String> saveProperties(@RequestBody List<MessageProperty> properties) {
+        uiService.saveMessageProperties(properties);
+        Map<String, String> response = new HashMap<>();
+        response.put("status", "success");
+        response.put("message", "Properties saved successfully");
+        return response;
+    }
+    
+    // 7. 发送消息
+    @PostMapping("/api/send/message")
+    @ResponseBody
+    public Map<String, String> sendMessage(@RequestBody Map<String, String> payload) {
+        uiService.sendMessage(payload.get("content"));
+        Map<String, String> response = new HashMap<>();
+        response.put("status", "success");
+        response.put("message", "Message sent successfully");
+        return response;
     }
 }
