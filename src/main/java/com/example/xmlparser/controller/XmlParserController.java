@@ -40,12 +40,13 @@ public class XmlParserController {
         // 添加所有需要的数据到模型
         model.addAttribute("simulators", uiService.getAllSimulators());
         model.addAttribute("messages", uiService.getMessages());
-        model.addAttribute("messageProperties", uiService.getCurrentMessageProperties());
         
         // 默认选择第一个模拟器的属性
         List<Simulator> simulators = uiService.getAllSimulators();
         if (!simulators.isEmpty()) {
             model.addAttribute("selectedProperty", uiService.getPropertyBySimulator(simulators.get(0).getName()));
+            // 添加选中模拟器的消息属性
+            model.addAttribute("messageProperties", uiService.getMessagePropertiesBySimulator(simulators.get(0).getName()));
         }
         
         return "index";
@@ -79,25 +80,37 @@ public class XmlParserController {
         return uiService.getPropertyBySimulator(simulatorName);
     }
     
-    // 5. 上传XML文件
-    @PostMapping("/api/upload")
+    // 5. 获取指定模拟器的消息属性
+    @GetMapping("/api/message-properties/{simulatorName}")
     @ResponseBody
-    public List<MessageProperty> uploadFile(@RequestParam("file") MultipartFile file) {
-        return uiService.uploadXmlFile(file);
+    public List<MessageProperty> getMessagePropertiesBySimulator(@PathVariable String simulatorName) {
+        return uiService.getMessagePropertiesBySimulator(simulatorName);
     }
     
-    // 6. 保存消息属性配置
+    // 6. 上传XML文件并关联到特定模拟器
+    @PostMapping("/api/upload")
+    @ResponseBody
+    public List<MessageProperty> uploadFile(@RequestParam("file") MultipartFile file, 
+                                           @RequestParam("simulatorName") String simulatorName) {
+        return uiService.uploadXmlFile(file, simulatorName);
+    }
+    
+    // 7. 保存消息属性配置，关联到特定模拟器
     @PostMapping("/api/save/properties")
     @ResponseBody
-    public Map<String, String> saveProperties(@RequestBody List<MessageProperty> properties) {
-        uiService.saveMessageProperties(properties);
+    public Map<String, String> saveProperties(@RequestBody Map<String, Object> payload) {
+        @SuppressWarnings("unchecked")
+        List<MessageProperty> properties = (List<MessageProperty>) payload.get("properties");
+        String simulatorName = (String) payload.get("simulatorName");
+        
+        uiService.saveMessageProperties(properties, simulatorName);
         Map<String, String> response = new HashMap<>();
         response.put("status", "success");
         response.put("message", "Properties saved successfully");
         return response;
     }
     
-    // 7. 发送消息
+    // 8. 发送消息
     @PostMapping("/api/send/message")
     @ResponseBody
     public Map<String, String> sendMessage(@RequestBody Map<String, String> payload) {

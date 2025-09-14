@@ -11,11 +11,12 @@
             font-family: Arial, sans-serif;
             margin: 0;
             padding: 10px;
+            font-size: 12px;
         }
         .container-fluid {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            grid-template-rows: auto auto auto;
+            grid-template-rows: auto auto 1fr;
             grid-template-areas: 
                 "simulators messages"
                 "properties message-detail"
@@ -45,6 +46,7 @@
         }
         .message-properties-section {
             grid-area: message-properties;
+            min-height: 350px;
         }
         .send-area-section {
             grid-area: send-area;
@@ -54,13 +56,14 @@
             margin-bottom: 10px;
             padding-bottom: 5px;
             border-bottom: 1px solid #ddd;
+            font-size: 13px;
         }
         /* 为所有表格容器添加滚动样式 */
         .table-responsive {
             flex-grow: 1;
             overflow-y: auto;
             overflow-x: auto;
-            max-height: 300px;
+            max-height: 250px;
             border: 1px solid #ddd;
             border-radius: 4px;
         }
@@ -72,15 +75,18 @@
             top: 0;
             z-index: 10;
             border-bottom: 2px solid #ddd;
+            font-size: 12px;
         }
         table {
             width: 100%;
             border-collapse: collapse;
+            font-size: 12px;
         }
         th, td {
             border: 1px solid #ddd;
-            padding: 8px;
+            padding: 6px;
             text-align: left;
+            font-size: 12px;
         }
         th {
             background-color: #f2f2f2;
@@ -101,12 +107,14 @@
             overflow: auto;
             white-space: pre-wrap;
             background-color: #f9f9f9;
+            font-size: 12px;
         }
         .form-group {
             margin-bottom: 10px;
         }
         .btn {
             margin-right: 5px;
+            font-size: 12px;
         }
         .connection-set {
             display: none;
@@ -119,22 +127,29 @@
         .connection-set-label {
             width: 100px;
             font-weight: bold;
+            font-size: 12px;
         }
         .connection-set-value {
             flex-grow: 1;
+            font-size: 12px;
         }
         .file-upload-btn {
             margin-top: 5px;
         }
+        .button-container {
+            margin-top: auto;
+            padding-top: 10px;
+        }
         .save-btn {
-            margin-top: 10px;
+            margin-top: auto;
         }
         .send-btn {
-            margin-bottom: 10px;
+            margin-top: auto;
         }
         .send-textarea {
             width: 100%;
-            height: 100px;
+            flex-grow: 1;
+            font-size: 12px;
         }
     </style>
 </head>
@@ -277,19 +292,26 @@
                     </tbody>
                 </table>
             </div>
-            <button id="save-properties-btn" class="btn btn-primary save-btn">Save</button>
+            <div class="button-container">
+                <button id="save-properties-btn" class="btn btn-primary">Save</button>
+            </div>
         </div>
 
         <!-- 右下：Send按钮和文本框 -->
         <div class="section send-area-section">
             <div class="section-title">Send Message</div>
-            <button id="send-btn" class="btn btn-primary send-btn">Send</button>
             <textarea id="send-textarea" class="send-textarea form-control" placeholder="Click on a simulator row to display details here..."></textarea>
+            <div class="button-container">
+                <button id="send-btn" class="btn btn-primary">Send</button>
+            </div>
         </div>
     </div>
 
     <script>
         $(document).ready(function() {
+            // 当前选中的模拟器名称
+            var selectedSimulator = '';
+            
             // 1. Simulators表格行点击事件
             $('#simulators-table tbody tr').click(function() {
                 // 移除所有选中状态
@@ -298,10 +320,16 @@
                 $(this).addClass('selected');
                 
                 // 获取选中的模拟器名称
-                var simulatorName = $(this).data('name');
+                selectedSimulator = $(this).data('name');
+                console.log('Simulator selected:', selectedSimulator);
                 
-                // 更新Properties表格（内部会更新Send文本框）
-                updateProperties(simulatorName);
+                // 更新Properties表格
+                console.log('Calling updateProperties with simulator:', selectedSimulator);
+                updateProperties(selectedSimulator);
+                // 更新Message properties表格（加载对应模拟器的数据）
+                console.log('Calling loadSimulatorMessageProperties with simulator:', selectedSimulator);
+                loadSimulatorMessageProperties(selectedSimulator);
+                console.log('Both update functions called for simulator:', selectedSimulator);
             });
             
             // 2. Messages表格行点击事件
@@ -336,7 +364,7 @@
             $('#file-upload').change(function() {
                 var file = this.files[0];
                 if (file) {
-                    uploadFile(file);
+                    uploadFile(file, selectedSimulator);
                 }
             });
             
@@ -400,9 +428,15 @@
             }
             
             // 上传文件
-            function uploadFile(file) {
+            function uploadFile(file, simulatorName) {
+                if (!simulatorName) {
+                    alert('Please select a simulator first');
+                    return;
+                }
+                
                 var formData = new FormData();
                 formData.append('file', file);
+                formData.append('simulatorName', simulatorName);
                 
                 $.ajax({
                     url: '/xmlparser/api/upload',
@@ -413,10 +447,29 @@
                     success: function(properties) {
                         // 更新Message properties表格
                         updateMessagePropertiesTable(properties);
-                        alert('File uploaded successfully');
                     },
                     error: function() {
                         alert('Failed to upload file');
+                    }
+                });
+            }
+            
+            // 加载选中模拟器的消息属性
+            function loadSimulatorMessageProperties(simulatorName) {
+                console.log('Loading message properties for simulator: ' + simulatorName);
+                $.ajax({
+                    url: '/xmlparser/api/message-properties/' + simulatorName,
+                    type: 'GET',
+                    success: function(properties) {
+                        console.log('Successfully loaded message properties:', properties);
+                        updateMessagePropertiesTable(properties);
+                    },
+                    error: function(xhr, status, error) {
+                        console.error('Failed to load message properties for simulator: ' + simulatorName, error);
+                        console.log('Response status:', status);
+                        console.log('Response text:', xhr.responseText);
+                        // 清除表格内容以确保显示为空
+                        $('#message-properties-table tbody').empty();
                     }
                 });
             }
@@ -465,6 +518,11 @@
             
             // 保存消息属性配置
             function saveMessageProperties() {
+                if (!selectedSimulator) {
+                    alert('Please select a simulator first');
+                    return;
+                }
+                
                 var properties = [];
                 
                 $('#message-properties-table tbody tr').each(function() {
@@ -483,7 +541,10 @@
                     url: '/xmlparser/api/save/properties',
                     type: 'POST',
                     contentType: 'application/json',
-                    data: JSON.stringify(properties),
+                    data: JSON.stringify({
+                        properties: properties,
+                        simulatorName: selectedSimulator
+                    }),
                     success: function() {
                         alert('Properties saved successfully');
                         // 刷新消息列表
@@ -550,6 +611,7 @@
             
             // 默认选中第一个模拟器
             if ($('#simulators-table tbody tr').length > 0) {
+                selectedSimulator = $('#simulators-table tbody tr:first').data('name');
                 $('#simulators-table tbody tr:first').click();
             }
             

@@ -21,15 +21,15 @@ public interface UiService {
     // 获取属性信息
     Property getPropertyBySimulator(String simulatorName);
     
-    // 上传XML文件并解析
-    List<MessageProperty> uploadXmlFile(MultipartFile file);
+    // 上传XML文件并解析，关联到特定模拟器
+    List<MessageProperty> uploadXmlFile(MultipartFile file, String simulatorName);
     
-    // 保存消息属性配置
-    void saveMessageProperties(List<MessageProperty> properties);
+    // 保存消息属性配置，关联到特定模拟器
+    void saveMessageProperties(List<MessageProperty> properties, String simulatorName);
     
     // 发送消息
     void sendMessage(String content);
     
-    // 获取当前的消息属性
-    List<MessageProperty> getCurrentMessageProperties();
+    // 获取指定模拟器的消息属性
+    List<MessageProperty> getMessagePropertiesBySimulator(String simulatorName);
 }
