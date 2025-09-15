@@ -30,6 +30,9 @@ public interface UiService {
     // 发送消息
     void sendMessage(String content);
     
+    // 发送消息（带模拟器名称）
+    void sendMessage(String content, String simulatorName);
+    
     // 获取指定模拟器的消息属性
     List<MessageProperty> getMessagePropertiesBySimulator(String simulatorName);
 }

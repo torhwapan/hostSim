@@ -180,7 +180,7 @@
 
         <!-- 右上角：Messages表格 -->
         <div class="section messages-section">
-            <div class="section-title">Messages</div>
+            <div class="section-title">Messages <button id="refresh-messages-btn" class="btn btn-primary btn-sm" style="float: right; margin-top: -5px;">Refresh</button></div>
             <div class="table-responsive">
                 <table id="messages-table">
                     <thead>
@@ -225,10 +225,10 @@
                 </div>
                 <div class="property-row">
                     <div class="connection-set-row">
-                        <div class="connection-set-label">MQ Library:</div>
+                        <div class="connection-set-label">文件状态:</div>
                         <div class="connection-set-value">
-                            <span id="property-mqLibrary" th:text="${selectedProperty?.mqLibrary}"></span>
-                            <input type="file" id="file-upload" class="file-upload-btn form-control" accept=".xml">
+                            <div id="upload-status" style="display: inline-block;">未上传文件</div>
+                            <input type="file" id="file-upload" class="file-upload-btn form-control" accept=".xml" style="margin-top: 5px;">
                         </div>
                     </div>
                 </div>
@@ -311,6 +311,7 @@
         $(document).ready(function() {
             // 当前选中的模拟器名称
             var selectedSimulator = '';
+            var simulatorUploads = {}; // 存储每个模拟器的文件上传状态
             
             // 1. Simulators表格行点击事件
             $('#simulators-table tbody tr').click(function() {
@@ -330,6 +331,9 @@
                 console.log('Calling loadSimulatorMessageProperties with simulator:', selectedSimulator);
                 loadSimulatorMessageProperties(selectedSimulator);
                 console.log('Both update functions called for simulator:', selectedSimulator);
+                
+                // 重置文件上传组件状态
+                $('.file-upload').val('');
             });
             
             // 2. Messages表格行点击事件
@@ -388,18 +392,32 @@
                         $('#property-name').text(property.name);
                         $('#property-systemId').text(property.systemId);
                         $('#property-connectionType').text(property.connectionType);
-                        $('#property-mqLibrary').text(property.mqLibrary);
+                        // 不再使用mqLibrary字段
                         $('#connection-ip').text(property.connectionSet.ip);
                         $('#connection-port').text(property.connectionSet.port);
                         $('#connection-listenQueue').text(property.connectionSet.listenQueue);
                         $('#connection-targetQueue').text(property.connectionSet.targetQueue);
-                        
+                         
+                        // 更新文件上传状态显示
+                        updateUploadStatus(simulatorName);
+                         
                         // 不再从simulator属性更新Send文本框，而是从Message properties表格更新
                     },
                     error: function() {
                         alert('Failed to load property data');
                     }
                 });
+            }
+            
+            // 更新文件上传状态显示
+            function updateUploadStatus(simulatorName) {
+                if (simulatorUploads[simulatorName]) {
+                    $('#upload-status').text('已上传文件：' + simulatorUploads[simulatorName]);
+                    $('#upload-status').css('color', '#28a745'); // 成功颜色
+                } else {
+                    $('#upload-status').text('未上传文件');
+                    $('#upload-status').css('color', '#6c757d'); // 默认颜色
+                }
             }
             
             // 更新Message Detail
@@ -445,10 +463,22 @@
                     processData: false,
                     contentType: false,
                     success: function(properties) {
+                        // 更新文件上传状态
+                        simulatorUploads[simulatorName] = file.name;
+                        $('#upload-status').text('已上传文件：' + file.name);
+                        $('#upload-status').css('color', '#28a745'); // 成功颜色
+                        
+                        // 显示成功消息
+                        alert('文件上传成功：' + file.name);
+                        
                         // 更新Message properties表格
                         updateMessagePropertiesTable(properties);
                     },
                     error: function() {
+                        // 清除文件上传状态
+                        simulatorUploads[simulatorName] = null;
+                        $('#upload-status').text('未上传文件');
+                        $('#upload-status').css('color', '#6c757d'); // 默认颜色
                         alert('Failed to upload file');
                     }
                 });
@@ -565,11 +595,16 @@
                     return;
                 }
                 
+                if (!selectedSimulator) {
+                    alert('Please select a simulator first');
+                    return;
+                }
+                
                 $.ajax({
                     url: '/xmlparser/api/send/message',
                     type: 'POST',
                     contentType: 'application/json',
-                    data: JSON.stringify({content: content}),
+                    data: JSON.stringify({content: content, simulatorName: selectedSimulator}),
                     success: function() {
                         alert('Message sent successfully');
                         // 刷新消息列表
@@ -619,6 +654,11 @@
             if ($('#messages-table tbody tr').length > 0) {
                 $('#messages-table tbody tr:first').click();
             }
+            
+            // 为刷新消息按钮添加点击事件
+            $('#refresh-messages-btn').click(function() {
+                refreshMessages();
+            });
             
             // 为初始渲染的Message properties表格行添加点击事件
             $('#message-properties-table tbody tr').click(function() {

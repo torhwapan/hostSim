@@ -114,7 +114,15 @@ public class XmlParserController {
     @PostMapping("/api/send/message")
     @ResponseBody
     public Map<String, String> sendMessage(@RequestBody Map<String, String> payload) {
-        uiService.sendMessage(payload.get("content"));
+        String content = payload.get("content");
+        String simulatorName = payload.get("simulatorName");
+        
+        if (simulatorName != null && !simulatorName.isEmpty()) {
+            uiService.sendMessage(content, simulatorName);
+        } else {
+            uiService.sendMessage(content);
+        }
+        
         Map<String, String> response = new HashMap<>();
         response.put("status", "success");
         response.put("message", "Message sent successfully");

@@ -166,6 +166,12 @@ public class UiServiceImpl implements UiService {
     }
     
     @Override
+    public void sendMessage(String content, String simulatorName) {
+        // 添加发送的消息到消息列表，并包含模拟器名称
+        messages.add(new Message("Message sent from " + simulatorName, "Content: " + content));
+    }
+    
+    @Override
     public List<MessageProperty> getMessagePropertiesBySimulator(String simulatorName) {
         // 获取指定模拟器的消息属性，如果没有则返回空列表
         return simulatorMessageProperties.getOrDefault(simulatorName, new ArrayList<>());
