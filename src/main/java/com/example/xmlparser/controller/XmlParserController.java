@@ -128,4 +128,15 @@ public class XmlParserController {
         response.put("message", "Message sent successfully");
         return response;
     }
+    
+    // 9. 清空消息记录
+    @PostMapping("/api/clear/messages")
+    @ResponseBody
+    public Map<String, String> clearMessages() {
+        uiService.clearMessages();
+        Map<String, String> response = new HashMap<>();
+        response.put("status", "success");
+        response.put("message", "Messages cleared successfully");
+        return response;
+    }
 }

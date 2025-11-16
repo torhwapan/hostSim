@@ -35,4 +35,7 @@ public interface UiService {
     
     // 获取指定模拟器的消息属性
     List<MessageProperty> getMessagePropertiesBySimulator(String simulatorName);
+    
+    // 清空消息记录
+    void clearMessages();
 }

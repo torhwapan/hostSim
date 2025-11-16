@@ -176,4 +176,12 @@ public class UiServiceImpl implements UiService {
         // 获取指定模拟器的消息属性，如果没有则返回空列表
         return simulatorMessageProperties.getOrDefault(simulatorName, new ArrayList<>());
     }
+    
+    @Override
+    public void clearMessages() {
+        // 清空所有消息记录
+        messages.clear();
+        // 添加一条清空记录到消息列表
+        messages.add(new Message("Messages cleared", "All messages have been cleared"));
+    }
 }

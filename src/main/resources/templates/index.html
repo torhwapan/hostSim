@@ -151,6 +151,13 @@
             flex-grow: 1;
             font-size: 12px;
         }
+        /* Messages section buttons styling */
+        .messages-section .btn {
+            width: 60px;
+            text-align: center;
+            padding-left: 5px;
+            padding-right: 5px;
+        }
     </style>
 </head>
 <body>
@@ -180,7 +187,7 @@
 
         <!-- 右上角：Messages表格 -->
         <div class="section messages-section">
-            <div class="section-title">Messages <button id="refresh-messages-btn" class="btn btn-primary btn-sm" style="float: right; margin-top: -5px;">Refresh</button></div>
+            <div class="section-title">Messages <button id="refresh-messages-btn" class="btn btn-primary btn-sm" style="float: right; margin-top: -5px;">Refresh</button><button id="clear-messages-btn" class="btn btn-primary btn-sm" style="float: right; margin-top: -5px; margin-right: 5px;">Clear</button></div>
             <div class="table-responsive">
                 <table id="messages-table">
                     <thead>
@@ -449,6 +456,8 @@
             function uploadFile(file, simulatorName) {
                 if (!simulatorName) {
                     alert('Please select a simulator first');
+                    // Reset file input to allow re-uploading the same file
+                    $('#file-upload').val('');
                     return;
                 }
                 
@@ -473,6 +482,9 @@
                         
                         // 更新Message properties表格
                         updateMessagePropertiesTable(properties);
+                        
+                        // Reset file input to allow re-uploading the same file
+                        $('#file-upload').val('');
                     },
                     error: function() {
                         // 清除文件上传状态
@@ -480,6 +492,9 @@
                         $('#upload-status').text('未上传文件');
                         $('#upload-status').css('color', '#6c757d'); // 默认颜色
                         alert('Failed to upload file');
+                        
+                        // Reset file input to allow re-uploading the same file
+                        $('#file-upload').val('');
                     }
                 });
             }
@@ -644,6 +659,23 @@
                 });
             }
             
+            // 清空消息列表
+            function clearMessages() {
+                $.ajax({
+                    url: '/xmlparser/api/clear/messages',
+                    type: 'POST',
+                    success: function() {
+                        // 清空成功后自动刷新消息列表
+                        refreshMessages();
+                        // 显示成功消息
+                        alert('Messages cleared successfully');
+                    },
+                    error: function() {
+                        alert('Failed to clear messages');
+                    }
+                });
+            }
+            
             // 默认选中第一个模拟器
             if ($('#simulators-table tbody tr').length > 0) {
                 selectedSimulator = $('#simulators-table tbody tr:first').data('name');
@@ -658,6 +690,11 @@
             // 为刷新消息按钮添加点击事件
             $('#refresh-messages-btn').click(function() {
                 refreshMessages();
+            });
+            
+            // 为清空消息按钮添加点击事件
+            $('#clear-messages-btn').click(function() {
+                clearMessages();
             });
             
             // 为初始渲染的Message properties表格行添加点击事件
